@@ -107,6 +107,24 @@ export class ProductsLambdaStack extends Stack {
             }
         );
 
+        const createProductLambda = Function.fromFunctionAttributes(
+            this,
+            'lambda-function',
+            {
+                functionArn:
+                    'arn:aws:lambda:eu-central-1:306503647861:function:ProductTableStack-lambdafunction841552AF-FLxarZ7kmU2l',
+                sameEnvironment: true,
+            }
+        );
+
+        const addProductIntegration = new LambdaIntegration(
+            createProductLambda,
+            {
+                integrationResponses: INTEGRATION_RESPONCES,
+                proxy: false,
+            }
+        );
+
         // Create a resource /products and GET request under it
         const productsResource = api.root.addResource('products');
         // On this resource attach a GET method which pass reuest to our Lambda function
@@ -117,6 +135,10 @@ export class ProductsLambdaStack extends Stack {
         productsResource.addCorsPreflight({
             allowOrigins: ['*'],
             allowMethods: ['GET', 'OPTIONS'],
+        });
+
+        productsResource.addMethod('POST', addProductIntegration, {
+            methodResponses: METHOD_RESPONSES,
         });
 
         // Create a resource /products/{id} and GET request under it

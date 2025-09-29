@@ -17,10 +17,6 @@ export class ProductTableStack extends Stack {
                 name: 'id',
                 type: AttributeType.STRING,
             },
-            // sortKey: {
-            //     name: 'price',
-            //     type: AttributeType.NUMBER,
-            // },
             removalPolicy: cdk.RemovalPolicy.DESTROY,
         });
         const addProductLambda = new lambda.Function(this, 'lambda-function', {

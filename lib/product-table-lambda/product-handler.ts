@@ -4,20 +4,31 @@ import { v1 as uuidv1 } from 'uuid';
 
 const dynamoDB = new DynamoDBClient({ region: process.env.AWS_REGION });
 const productTableName = process.env.PRODUCT_TABLE_NAME as string;
-console.log('uuidv1():', uuidv1());
 
 export const addProduct: Handler = async (event, context) => {
     console.log('Event:', event);
     const id = uuidv1();
+    let price, title, description;
+
+    if (event.body) {
+        const body = JSON.parse(event.body);
+        price = body.price;
+        title = body.title;
+        description = body.description;
+    } else {
+        price = event.price;
+        title = event.title;
+        description = event.description;
+    }
 
     try {
         const addToProductTableCommand = new PutItemCommand({
             TableName: productTableName,
             Item: {
                 id: { S: id },
-                price: { N: event.price },
-                title: { S: event.title },
-                description: { S: event.description },
+                price: { N: price },
+                title: { S: title },
+                description: { S: description },
             },
         });
 
@@ -36,9 +47,3 @@ export const addProduct: Handler = async (event, context) => {
         throw new Error('Error adding item to DynamoDB table');
     }
 };
-
-// {
-//     "price": "150",
-//     "title": "Product 5",
-//     "description": "Description for Product 5"
-// }

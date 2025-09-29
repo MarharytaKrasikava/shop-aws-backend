@@ -17,10 +17,6 @@ export class StockTableStack extends Stack {
                 name: 'product_id',
                 type: AttributeType.STRING,
             },
-            // sortKey: {
-            //     name: 'count',
-            //     type: AttributeType.NUMBER,
-            // },
             removalPolicy: cdk.RemovalPolicy.DESTROY,
         });
 
