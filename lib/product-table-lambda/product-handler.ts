@@ -21,6 +21,13 @@ export const addProduct: Handler = async (event, context) => {
         description = event.description;
     }
 
+    if (!price || !title || !description) {
+        return {
+            statusCode: 400,
+            body: 'Missing required fields: price, title, and description',
+        };
+    }
+
     try {
         const addToProductTableCommand = new PutItemCommand({
             TableName: productTableName,
