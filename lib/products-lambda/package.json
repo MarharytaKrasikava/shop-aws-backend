@@ -1,0 +1,16 @@
+{
+  "name": "products-lambda",
+  "version": "1.0.0",
+  "main": "product-by-id-handler.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "types": "./product-by-id-handler.d.ts",
+  "description": "",
+  "dependencies": {
+    "aws-sdk": "^2.1692.0"
+  }
+}
