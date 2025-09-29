@@ -11,14 +11,7 @@ export const getDbProducts = async () => {
             STOCK_TABLE
         );
 
-        // Return the combined result
-        return {
-            statusCode: 200,
-            body: JSON.stringify({
-                success: true,
-                data: productsWithCounts,
-            }),
-        };
+        return productsWithCounts;
     } catch (error) {
         console.error('Error fetching data:', error);
         return {

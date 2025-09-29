@@ -73,7 +73,15 @@ export class ProductsLambdaStack extends Stack {
             timeout: Duration.seconds(5),
             handler: 'product-by-id-handler.main',
             code: Code.fromAsset(path.join(__dirname, './')),
+            environment: {
+                PRODUCTS_TABLE: productsTableName,
+                STOCK_TABLE: stockTableName,
+            },
         });
+
+        //grant permissions
+        productTable.grantReadData(getProductById);
+        stockTable.grantReadData(getProductById);
 
         const api = new RestApi(this, 'product-api', {
             restApiName: 'Product API Gateway',
