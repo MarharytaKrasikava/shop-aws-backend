@@ -1,5 +1,25 @@
 import { ProductService } from './product-service';
 
-export async function main() {
-    return ProductService.getProducts();
-}
+const PRODUCTS_TABLE = process.env.PRODUCTS_TABLE as string;
+const STOCK_TABLE = process.env.STOCK_TABLE as string;
+
+export const getDbProducts = async () => {
+    try {
+        // Wait for all category queries to complete
+        const productsWithCounts = await ProductService.getProducts(
+            PRODUCTS_TABLE,
+            STOCK_TABLE
+        );
+
+        return productsWithCounts;
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({
+                success: false,
+                error: 'Internal Server Error',
+            }),
+        };
+    }
+};

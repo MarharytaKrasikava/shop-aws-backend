@@ -17,6 +17,20 @@
     ]
   },
   "context": {
+    "database": {
+      "products": {
+        "tableName": "ProductsTable",
+        "region": "eu-central-1",
+        "readCapacity": 5,
+        "writeCapacity": 5
+      },
+      "stock": {
+        "tableName": "StockTable",
+        "region": "eu-central-1",
+        "readCapacity": 5,
+        "writeCapacity": 5
+      }
+    },
     "@aws-cdk/aws-signer:signingProfileNamePassedToCfn": true,
     "@aws-cdk/aws-ecs-patterns:secGroupsDisablesImplicitOpenListener": true,
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
