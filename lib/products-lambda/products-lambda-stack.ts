@@ -4,30 +4,10 @@ import { Stack, type StackProps, Duration } from 'aws-cdk-lib';
 import { Table } from 'aws-cdk-lib/aws-dynamodb';
 import * as path from 'path';
 import { Construct } from 'constructs';
-
-const INTEGRATION_RESPONCES = [
-    {
-        statusCode: '200',
-        responseParameters: {
-            'method.response.header.Access-Control-Allow-Origin': "'*'",
-            'method.response.header.Access-Control-Allow-Headers':
-                "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'",
-            'method.response.header.Access-Control-Allow-Methods':
-                "'GET,OPTIONS'",
-        },
-    },
-];
-
-const METHOD_RESPONSES = [
-    {
-        statusCode: '200',
-        responseParameters: {
-            'method.response.header.Access-Control-Allow-Origin': true,
-            'method.response.header.Access-Control-Allow-Headers': true,
-            'method.response.header.Access-Control-Allow-Methods': true,
-        },
-    },
-];
+import {
+    INTEGRATION_RESPONCES,
+    METHOD_RESPONSES,
+} from '../constants/responces';
 
 export class ProductsLambdaStack extends Stack {
     constructor(scope: Construct, id: string, props?: StackProps) {

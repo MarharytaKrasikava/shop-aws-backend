@@ -3,7 +3,7 @@ import { ProductService } from './product-service';
 const PRODUCTS_TABLE = process.env.PRODUCTS_TABLE as string;
 const STOCK_TABLE = process.env.STOCK_TABLE as string;
 
-export const getDbProducts = async () => {
+export const getDbProducts: () => Promise<any> = async () => {
     try {
         // Wait for all category queries to complete
         const productsWithCounts = await ProductService.getProducts(

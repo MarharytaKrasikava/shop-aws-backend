@@ -1,5 +1,4 @@
 import { DynamoDB } from 'aws-sdk';
-import { products } from './mocks/data';
 
 export class ProductService {
     public static async getProducts(
