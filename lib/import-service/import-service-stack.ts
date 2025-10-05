@@ -2,6 +2,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
+import { LambdaDestination } from 'aws-cdk-lib/aws-s3-notifications';
 import { Construct } from 'constructs';
 import { join } from 'path';
 import {
@@ -18,6 +19,7 @@ export class ImportServiceStack extends cdk.Stack {
             removalPolicy: cdk.RemovalPolicy.DESTROY, // Note: only use DESTROY for development
         });
 
+        // Task 5.3 Lambda function to generate pre-signed URLs
         const importProductFileLambda = new lambda.Function(
             this,
             'importProductFile',
@@ -32,6 +34,7 @@ export class ImportServiceStack extends cdk.Stack {
                 },
             }
         );
+
         // Grant S3 permissions to the Lambda function
         bucket.grantReadWrite(importProductFileLambda);
 
@@ -40,6 +43,7 @@ export class ImportServiceStack extends cdk.Stack {
             description: 'This API serves the Import Lambda functions',
         });
 
+        // Integration for the importProductFileLambda
         const importIntegration = new LambdaIntegration(
             importProductFileLambda,
             {
@@ -56,5 +60,30 @@ export class ImportServiceStack extends cdk.Stack {
         importResource.addMethod('GET', importIntegration, {
             methodResponses: METHOD_RESPONSES,
         });
+
+        // Task 5.3 Lambda function to parse CSV files from S3
+        const importFileParserLambda = new lambda.Function(
+            this,
+            'importFileParser',
+            {
+                runtime: lambda.Runtime.NODEJS_20_X,
+                memorySize: 1024,
+                timeout: cdk.Duration.seconds(5),
+                handler: 'import-file-parser.main',
+                code: lambda.Code.fromAsset(join(__dirname, './')),
+                environment: {
+                    BUCKET_NAME: bucket.bucketName,
+                },
+            }
+        );
+
+        // Grant S3 permissions to the Lambda function
+        bucket.grantRead(importFileParserLambda);
+
+        bucket.addEventNotification(
+            s3.EventType.OBJECT_CREATED,
+            new LambdaDestination(importFileParserLambda),
+            { prefix: 'uploaded/' }
+        );
     }
 }

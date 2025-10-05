@@ -9,8 +9,9 @@
   "author": "",
   "license": "ISC",
   "types": "./import-product-file.d.ts",
-  "description": "",
   "dependencies": {
-    "aws-sdk": "^2.1692.0"
-  }
+    "aws-sdk": "^2.1692.0",
+    "csv-parser": "^3.2.0"
+  },
+  "description": ""
 }
