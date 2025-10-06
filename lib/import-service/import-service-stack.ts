@@ -3,6 +3,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { LambdaDestination } from 'aws-cdk-lib/aws-s3-notifications';
+import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
 import { Construct } from 'constructs';
 import { join } from 'path';
 import {
@@ -14,12 +15,19 @@ export class ImportServiceStack extends cdk.Stack {
     constructor(scope: Construct, id: string, props?: cdk.StackProps) {
         super(scope, id, props);
 
+        // Task 5.1 Create S3 bucket
         const bucket = new s3.Bucket(this, 'ProductImportBucket', {
             versioned: true,
             removalPolicy: cdk.RemovalPolicy.DESTROY, // Note: only use DESTROY for development
         });
 
-        // Task 5.3 Lambda function to generate pre-signed URLs
+        new BucketDeployment(this, 'UploadFolderDeployment', {
+            destinationBucket: bucket,
+            destinationKeyPrefix: 'uploaded/',
+            sources: [Source.data('placeholder.txt', 'abc')],
+        });
+
+        // Task 5.2 Lambda function to generate pre-signed URLs
         const importProductFileLambda = new lambda.Function(
             this,
             'importProductFile',
