@@ -86,7 +86,9 @@ export class ImportServiceStack extends cdk.Stack {
         );
 
         // Grant S3 permissions to the Lambda function
-        bucket.grantRead(importFileParserLambda);
+        bucket.grantReadWrite(importFileParserLambda);
+        bucket.grantPut(importFileParserLambda);
+        bucket.grantDelete(importFileParserLambda);
 
         bucket.addEventNotification(
             s3.EventType.OBJECT_CREATED,

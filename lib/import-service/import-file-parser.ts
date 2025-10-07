@@ -24,6 +24,7 @@ export const main: (
             .getObject({ Bucket: BUCKET_NAME!, Key: key })
             .createReadStream();
 
+        // Pipe the S3 stream to the CSV parser
         await new Promise<void>((resolve, reject) => {
             s3Stream
                 .pipe(csv())
@@ -39,6 +40,19 @@ export const main: (
                     reject(err);
                 });
         });
+
+        // Move the processed file to the "parsed" folder
+        const destinationKey = key.replace('uploaded/', 'parsed/');
+        await s3
+            .copyObject({
+                Bucket: BUCKET_NAME!,
+                CopySource: `${BUCKET_NAME}/${key}`,
+                Key: destinationKey,
+            })
+            .promise();
+        await s3.deleteObject({ Bucket: BUCKET_NAME!, Key: key }).promise();
+
+        console.log(`File moved to ${destinationKey}`);
 
         return { statusCode: 200, body: 'CSV parsed and logged successfully' };
     } catch (error) {
