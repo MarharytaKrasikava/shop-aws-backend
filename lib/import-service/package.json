@@ -1,0 +1,17 @@
+{
+  "name": "import-service",
+  "version": "1.0.0",
+  "main": "import-product-file.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "types": "./import-product-file.d.ts",
+  "dependencies": {
+    "aws-sdk": "^2.1692.0",
+    "csv-parser": "^3.2.0"
+  },
+  "description": ""
+}
