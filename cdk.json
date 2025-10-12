@@ -31,6 +31,9 @@
         "writeCapacity": 5
       }
     },
+    "sqs": {
+      "url": "https://sqs.eu-central-1.amazonaws.com/306503647861/catalog-items-queue"
+    },
     "@aws-cdk/aws-signer:signingProfileNamePassedToCfn": true,
     "@aws-cdk/aws-ecs-patterns:secGroupsDisablesImplicitOpenListener": true,
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,

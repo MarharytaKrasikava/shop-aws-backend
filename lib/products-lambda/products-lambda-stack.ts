@@ -1,13 +1,15 @@
 import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
 import { LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
-import { Stack, type StackProps, Duration } from 'aws-cdk-lib';
+import { Stack, type StackProps, Duration, CfnOutput } from 'aws-cdk-lib';
 import { Table } from 'aws-cdk-lib/aws-dynamodb';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as path from 'path';
 import { Construct } from 'constructs';
 import {
     INTEGRATION_RESPONCES,
     METHOD_RESPONSES,
 } from '../constants/responces';
+import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 
 export class ProductsLambdaStack extends Stack {
     constructor(scope: Construct, id: string, props?: StackProps) {
@@ -133,6 +135,42 @@ export class ProductsLambdaStack extends Stack {
         singleProductResource.addCorsPreflight({
             allowOrigins: ['*'],
             allowMethods: ['GET', 'OPTIONS'],
+        });
+
+        // Task 6.1 SQS
+
+        const productSqs = new sqs.Queue(this, 'catalog-items-queue', {
+            queueName: 'catalog-items-queue',
+            visibilityTimeout: Duration.seconds(30),
+            receiveMessageWaitTime: Duration.seconds(20),
+        });
+
+        const catalogBatchProcess = new Function(
+            this,
+            'catalog-batch-process',
+            {
+                runtime: Runtime.NODEJS_20_X,
+                memorySize: 1024,
+                timeout: Duration.seconds(5),
+                handler: 'cbp-handler.main',
+                code: Code.fromAsset(path.join(__dirname, './')),
+                environment: {
+                    PRODUCT_TABLE_NAME: productsTableName,
+                    STOCK_TABLE_NAME: stockTableName,
+                },
+            }
+        );
+
+        catalogBatchProcess.addEventSource(
+            new SqsEventSource(productSqs, { batchSize: 5 })
+        );
+
+        productTable.grantWriteData(catalogBatchProcess);
+        stockTable.grantWriteData(catalogBatchProcess);
+
+        new CfnOutput(this, 'ProductSqsArn', {
+            value: productSqs.queueArn,
+            exportName: 'ProductSqsArn', // Export name to reference in other stacks
         });
     }
 }

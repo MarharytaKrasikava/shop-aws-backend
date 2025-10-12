@@ -1,11 +1,11 @@
-import { S3 } from 'aws-sdk';
+import { S3, SQS } from 'aws-sdk';
 import csv = require('csv-parser');
 
 export const main: (
     event: any
 ) => Promise<{ statusCode: number; body: string }> = async (event: any) => {
     const BUCKET_NAME = process.env.BUCKET_NAME;
-    console.log('Incoming event:', event);
+    const QUEUE_URL = process.env.SQS_URL;
 
     // Get the object key from the event
     const record = event.Records?.[0];
@@ -17,6 +17,8 @@ export const main: (
     }
 
     const s3 = new S3();
+    const sqs = new SQS();
+    const csvRecords: any[] = [];
 
     try {
         // Create a readable stream from S3
@@ -29,10 +31,32 @@ export const main: (
             s3Stream
                 .pipe(csv())
                 .on('data', (data: any) => {
-                    console.log('Parsed record:', data);
+                    csvRecords.push(data);
+                    console.log('Parsed CSV record:', data);
                 })
-                .on('end', () => {
+                .on('end', async () => {
                     console.log('CSV parsing completed');
+
+                    const params = {
+                        QueueUrl: QUEUE_URL!,
+                        Entries: csvRecords.map((record, index) => ({
+                            Id: index.toString(),
+                            MessageBody: JSON.stringify(record),
+                        })),
+                    };
+
+                    const res = await sqs.sendMessageBatch(params).promise();
+
+                    if (res.Failed && res.Failed.length > 0) {
+                        console.error(
+                            'Some messages failed to send:',
+                            res.Failed
+                        );
+                    } else {
+                        console.log(
+                            `Batch of ${csvRecords.length} messages sent`
+                        );
+                    }
                     resolve();
                 })
                 .on('error', (err: Error) => {

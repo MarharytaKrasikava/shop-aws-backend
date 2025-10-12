@@ -1,6 +1,7 @@
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as SQS from 'aws-cdk-lib/aws-sqs';
 import { LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { LambdaDestination } from 'aws-cdk-lib/aws-s3-notifications';
 import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
@@ -14,6 +15,9 @@ import {
 export class ImportServiceStack extends cdk.Stack {
     constructor(scope: Construct, id: string, props?: cdk.StackProps) {
         super(scope, id, props);
+
+        const sqsConfig = this.node.tryGetContext('sqs');
+        const sqsUrl = sqsConfig?.url;
 
         // Task 5.1 Create S3 bucket
         const bucket = new s3.Bucket(this, 'ProductImportBucket', {
@@ -81,6 +85,7 @@ export class ImportServiceStack extends cdk.Stack {
                 code: lambda.Code.fromAsset(join(__dirname, './')),
                 environment: {
                     BUCKET_NAME: bucket.bucketName,
+                    SQS_URL: sqsUrl || '',
                 },
             }
         );
@@ -95,5 +100,17 @@ export class ImportServiceStack extends cdk.Stack {
             new LambdaDestination(importFileParserLambda),
             { prefix: 'uploaded/' }
         );
+
+        // Import the ARN of the SQS queue
+        const productSqsArn = cdk.Fn.importValue('ProductSqsArn');
+
+        // Reference the imported SQS queue using its ARN
+        const productSqs = SQS.Queue.fromQueueArn(
+            this,
+            'ImportedProductSqs',
+            productSqsArn
+        );
+
+        productSqs.grantSendMessages(importFileParserLambda);
     }
 }
