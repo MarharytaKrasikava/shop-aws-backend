@@ -137,7 +137,7 @@ export class ProductsLambdaStack extends Stack {
             allowMethods: ['GET', 'OPTIONS'],
         });
 
-        // Task 6.1 SQS
+        // Task 6.1 Create SQS queue and Lambda function to process messages
 
         const productSqs = new sqs.Queue(this, 'catalog-items-queue', {
             queueName: 'catalog-items-queue',

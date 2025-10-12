@@ -37,6 +37,7 @@ export const main: (
                 .on('end', async () => {
                     console.log('CSV parsing completed');
 
+                    // Task 6.2 Send CSV records to SQS
                     const params = {
                         QueueUrl: QUEUE_URL!,
                         Entries: csvRecords.map((record, index) => ({
@@ -47,7 +48,7 @@ export const main: (
 
                     const res = await sqs.sendMessageBatch(params).promise();
 
-                    if (res.Failed && res.Failed.length > 0) {
+                    if (res.Failed?.length > 0) {
                         console.error(
                             'Some messages failed to send:',
                             res.Failed
