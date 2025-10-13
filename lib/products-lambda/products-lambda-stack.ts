@@ -197,5 +197,28 @@ export class ProductsLambdaStack extends Stack {
 
         // allow the Lambda to publish events to the SNS topic
         createProductTopic.grantPublish(catalogBatchProcess);
+
+        createProductTopic.addSubscription(
+            new subscriptions.EmailSubscription('atiragram7@gmail.com', {
+                filterPolicy: {
+                    title: sns.SubscriptionFilter.stringFilter({
+                        allowlist: ['Book', 'Notebook'],
+                    }),
+                },
+            })
+        );
+
+        createProductTopic.addSubscription(
+            new subscriptions.EmailSubscription(
+                'marharytakrasikava@gmail.com',
+                {
+                    filterPolicy: {
+                        title: sns.SubscriptionFilter.stringFilter({
+                            allowlist: ['Pen', 'Brush'],
+                        }),
+                    },
+                }
+            )
+        );
     }
 }

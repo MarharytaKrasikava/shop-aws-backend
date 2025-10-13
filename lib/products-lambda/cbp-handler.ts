@@ -14,7 +14,6 @@ export const main: Handler = async (event: SQSEvent) => {
 
     try {
         const sendPromises: Promise<any>[] = [];
-        const createdIds: string[] = []; // collect created product ids
 
         for (const record of event.Records) {
             console.log('Message Body:', record.body);
@@ -57,7 +56,10 @@ export const main: Handler = async (event: SQSEvent) => {
             });
 
             sendPromises.push(dynamoDB.send(addToStockTableCommand));
-            createdIds.push(id);
+
+            sendPromises.push(
+                publishToSns({ id, price, title, description, count })
+            );
         }
 
         const result = await Promise.all(sendPromises);
@@ -67,15 +69,17 @@ export const main: Handler = async (event: SQSEvent) => {
             JSON.stringify(result, null, 2)
         );
 
-        if (snsTopicArn && createdIds.length) {
+        async function publishToSns(item: any) {
             const publishCmd = new PublishCommand({
                 TopicArn: snsTopicArn,
                 Subject: 'Catalog batch processed',
-                Message: JSON.stringify({
-                    message: 'New products created',
-                    productIds: createdIds,
-                    count: createdIds.length,
-                }),
+                MessageAttributes: {
+                    title: {
+                        DataType: 'String',
+                        StringValue: item.title,
+                    },
+                },
+                Message: 'Added new product with ID ' + JSON.stringify(item.id),
             });
 
             try {
