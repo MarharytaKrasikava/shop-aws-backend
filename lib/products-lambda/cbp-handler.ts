@@ -1,16 +1,20 @@
 import { Handler, SQSEvent } from 'aws-lambda';
 import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
+import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 import { randomUUID } from 'crypto';
 
 const dynamoDB = new DynamoDBClient({ region: process.env.AWS_REGION });
 const productTableName = process.env.PRODUCT_TABLE_NAME as string;
 const stocksTableName = process.env.STOCK_TABLE_NAME as string;
+const snsTopicArn = process.env.SNS_TOPIC_ARN as string;
+const snsClient = new SNSClient({ region: process.env.AWS_REGION });
 
 export const main: Handler = async (event: SQSEvent) => {
     console.log('Processing SQS batch...');
 
     try {
         const sendPromises: Promise<any>[] = [];
+        const createdIds: string[] = []; // collect created product ids
 
         for (const record of event.Records) {
             console.log('Message Body:', record.body);
@@ -53,6 +57,7 @@ export const main: Handler = async (event: SQSEvent) => {
             });
 
             sendPromises.push(dynamoDB.send(addToStockTableCommand));
+            createdIds.push(id);
         }
 
         const result = await Promise.all(sendPromises);
@@ -61,6 +66,25 @@ export const main: Handler = async (event: SQSEvent) => {
             'Batch processing succeeded:',
             JSON.stringify(result, null, 2)
         );
+
+        if (snsTopicArn && createdIds.length) {
+            const publishCmd = new PublishCommand({
+                TopicArn: snsTopicArn,
+                Subject: 'Catalog batch processed',
+                Message: JSON.stringify({
+                    message: 'New products created',
+                    productIds: createdIds,
+                    count: createdIds.length,
+                }),
+            });
+
+            try {
+                const pubRes = await snsClient.send(publishCmd);
+                console.log('SNS publish result:', pubRes);
+            } catch (snsErr) {
+                console.error('Failed to publish SNS message:', snsErr);
+            }
+        }
 
         return { statusCode: 200, body: 'Batch processed succeeded' };
     } catch (error) {
