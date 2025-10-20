@@ -1,0 +1,16 @@
+{
+  "name": "authorization-service",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "basic-authorizer.js",
+  "types": "./basic-authorizer.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "dotenv": "^17.2.3"
+  }
+}

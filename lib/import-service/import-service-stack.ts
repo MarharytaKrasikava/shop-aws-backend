@@ -1,7 +1,12 @@
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
-import { LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
+import {
+    AuthorizationType,
+    LambdaIntegration,
+    RestApi,
+    TokenAuthorizer,
+} from 'aws-cdk-lib/aws-apigateway';
 import { LambdaDestination } from 'aws-cdk-lib/aws-s3-notifications';
 import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
 import { Construct } from 'constructs';
@@ -65,8 +70,29 @@ export class ImportServiceStack extends cdk.Stack {
 
         const importResource = api.root.addResource('import');
 
+        const importAuthLambda = new lambda.Function(this, 'BasicAuthorizer', {
+            runtime: lambda.Runtime.NODEJS_20_X,
+            handler: 'basic-authorizer.main', // implement authorizer logic in this handler
+            code: lambda.Code.fromAsset(
+                join(__dirname, '../authorization-service/')
+            ),
+            timeout: cdk.Duration.seconds(5),
+            memorySize: 128,
+        });
+
+        const importAuthorizer = new TokenAuthorizer(
+            this,
+            'ImportLambdaAuthorizer',
+            {
+                handler: importAuthLambda,
+                identitySource: 'method.request.header.Authorization',
+            }
+        );
+
         importResource.addMethod('GET', importIntegration, {
             methodResponses: METHOD_RESPONSES,
+            authorizer: importAuthorizer,
+            authorizationType: AuthorizationType.CUSTOM,
         });
 
         // Task 5.3 Lambda function to parse CSV files from S3
