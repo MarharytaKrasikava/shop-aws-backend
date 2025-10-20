@@ -89,6 +89,13 @@ export class ImportServiceStack extends cdk.Stack {
             }
         );
 
+        importResource.addCorsPreflight({
+            allowOrigins: ['*'],
+            allowMethods: ['GET', 'OPTIONS'],
+            allowHeaders: ['Content-Type', 'Authorization'],
+            statusCode: 200,
+        });
+
         importResource.addMethod('GET', importIntegration, {
             methodResponses: METHOD_RESPONSES,
             authorizer: importAuthorizer,
