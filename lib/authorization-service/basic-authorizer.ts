@@ -6,15 +6,12 @@ export const main = async (event: any) => {
     console.log('Event: ', event);
     const authHeader = event.authorizationToken;
 
-    //should return 403 HTTP status if access is denied for this user
+    //should return 401 HTTP status if Authorization header is not provided
     if (!authHeader || !authHeader.startsWith('Basic ')) {
-        return {
-            statusCode: 401,
-            body: JSON.stringify({ message: 'Unauthorized' }),
-        };
+        throw new Error('Unauthorized: missing auth token'); // API Gateway => 401 (UNAUTHORIZED)
     }
 
-    //should return 401 HTTP status if Authorization header is not provided
+    //should return 403 HTTP status if access is denied for this user
     const base64Credentials = authHeader.split(' ')[1];
     const credentials = Buffer.from(base64Credentials, 'base64').toString(
         'ascii'
@@ -23,10 +20,7 @@ export const main = async (event: any) => {
     const validPassword = process.env[username];
 
     if (!validPassword || password !== validPassword) {
-        return {
-            statusCode: 403,
-            body: JSON.stringify({ message: 'Forbidden' }),
-        };
+        return generatePolicy('user', 'Deny', event.methodArn); // API Gateway => 403 (ACCESS_DENIED)
     }
 
     function generatePolicy(
@@ -49,7 +43,5 @@ export const main = async (event: any) => {
         };
     }
 
-    const policy = generatePolicy('user|a1b2c3d4', 'Allow', event.methodArn);
-
-    return policy;
+    return generatePolicy('user|a1b2c3d4', 'Allow', event.methodArn); // API Gateway => 403 (ACCESS_DENIED)
 };

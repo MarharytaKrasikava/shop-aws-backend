@@ -4,6 +4,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import {
     AuthorizationType,
     LambdaIntegration,
+    ResponseType,
     RestApi,
     TokenAuthorizer,
 } from 'aws-cdk-lib/aws-apigateway';
@@ -128,5 +129,27 @@ export class ImportServiceStack extends cdk.Stack {
             new LambdaDestination(importFileParserLambda),
             { prefix: 'uploaded/' }
         );
+
+        api.addGatewayResponse('UnauthorizedResponse', {
+            type: ResponseType.UNAUTHORIZED,
+            templates: {
+                'application/json': `{"message":"$context.error.messageString"}`,
+            },
+            responseHeaders: {
+                'Access-Control-Allow-Origin': "'*'",
+                'Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+            },
+        });
+
+        api.addGatewayResponse('AccessDeniedResponse', {
+            type: ResponseType.ACCESS_DENIED,
+            templates: {
+                'application/json': `{"message":"$context.error.messageString"}`,
+            },
+            responseHeaders: {
+                'Access-Control-Allow-Origin': "'*'",
+                'Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+            },
+        });
     }
 }
