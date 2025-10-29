@@ -1,13 +1,20 @@
 import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
 import { LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
-import { Stack, type StackProps, Duration } from 'aws-cdk-lib';
+import { Stack, type StackProps, Duration, CfnOutput } from 'aws-cdk-lib';
 import { Table } from 'aws-cdk-lib/aws-dynamodb';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
+import * as sns from 'aws-cdk-lib/aws-sns';
+import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import * as path from 'path';
 import { Construct } from 'constructs';
 import {
     INTEGRATION_RESPONCES,
     METHOD_RESPONSES,
 } from '../constants/responces';
+import {
+    SnsEventSource,
+    SqsEventSource,
+} from 'aws-cdk-lib/aws-lambda-event-sources';
 
 export class ProductsLambdaStack extends Stack {
     constructor(scope: Construct, id: string, props?: StackProps) {
@@ -134,5 +141,84 @@ export class ProductsLambdaStack extends Stack {
             allowOrigins: ['*'],
             allowMethods: ['GET', 'OPTIONS'],
         });
+
+        // Task 6.3 Create SNS topic and subscribe Lambda function to it
+
+        const createProductTopic = new sns.Topic(this, 'create-product-topic');
+
+        const productsSnsLambda = new Function(this, 'products-sns-lambda', {
+            runtime: Runtime.NODEJS_20_X,
+            memorySize: 1024,
+            timeout: Duration.seconds(5),
+            handler: 'sns-lambda.handler',
+            code: Code.fromAsset(path.join(__dirname, './')),
+        });
+
+        productsSnsLambda.addEventSource(
+            new SnsEventSource(createProductTopic)
+        );
+
+        // Task 6.1 Create SQS queue and Lambda function to process messages
+
+        const productSqs = new sqs.Queue(this, 'catalog-items-queue', {
+            queueName: 'catalog-items-queue',
+            visibilityTimeout: Duration.seconds(30),
+            receiveMessageWaitTime: Duration.seconds(20),
+        });
+
+        const catalogBatchProcess = new Function(
+            this,
+            'catalog-batch-process',
+            {
+                runtime: Runtime.NODEJS_20_X,
+                memorySize: 1024,
+                timeout: Duration.seconds(5),
+                handler: 'cbp-handler.main',
+                code: Code.fromAsset(path.join(__dirname, './')),
+                environment: {
+                    PRODUCT_TABLE_NAME: productsTableName,
+                    STOCK_TABLE_NAME: stockTableName,
+                    SNS_TOPIC_ARN: createProductTopic.topicArn,
+                },
+            }
+        );
+
+        catalogBatchProcess.addEventSource(
+            new SqsEventSource(productSqs, { batchSize: 5 })
+        );
+
+        productTable.grantWriteData(catalogBatchProcess);
+        stockTable.grantWriteData(catalogBatchProcess);
+
+        new CfnOutput(this, 'ProductSqsArn', {
+            value: productSqs.queueArn,
+            exportName: 'ProductSqsArn', // Export name to reference in other stacks
+        });
+
+        // allow the Lambda to publish events to the SNS topic
+        createProductTopic.grantPublish(catalogBatchProcess);
+
+        createProductTopic.addSubscription(
+            new subscriptions.EmailSubscription('atiragram7@gmail.com', {
+                filterPolicy: {
+                    title: sns.SubscriptionFilter.stringFilter({
+                        allowlist: ['Book', 'Notebook'],
+                    }),
+                },
+            })
+        );
+
+        createProductTopic.addSubscription(
+            new subscriptions.EmailSubscription(
+                'marharytakrasikava@gmail.com',
+                {
+                    filterPolicy: {
+                        title: sns.SubscriptionFilter.stringFilter({
+                            allowlist: ['Pen', 'Brush'],
+                        }),
+                    },
+                }
+            )
+        );
     }
 }
