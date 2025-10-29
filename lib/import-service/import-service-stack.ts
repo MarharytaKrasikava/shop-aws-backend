@@ -8,6 +8,7 @@ import {
     RestApi,
     TokenAuthorizer,
 } from 'aws-cdk-lib/aws-apigateway';
+import * as SQS from 'aws-cdk-lib/aws-sqs';
 import { LambdaDestination } from 'aws-cdk-lib/aws-s3-notifications';
 import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
 import { Construct } from 'constructs';
@@ -20,6 +21,9 @@ import {
 export class ImportServiceStack extends cdk.Stack {
     constructor(scope: Construct, id: string, props?: cdk.StackProps) {
         super(scope, id, props);
+
+        const sqsConfig = this.node.tryGetContext('sqs');
+        const sqsUrl = sqsConfig?.url;
 
         // Task 5.1 Create S3 bucket
         const bucket = new s3.Bucket(this, 'ProductImportBucket', {
@@ -115,6 +119,7 @@ export class ImportServiceStack extends cdk.Stack {
                 code: lambda.Code.fromAsset(join(__dirname, './')),
                 environment: {
                     BUCKET_NAME: bucket.bucketName,
+                    SQS_URL: sqsUrl || '',
                 },
             }
         );
@@ -151,5 +156,16 @@ export class ImportServiceStack extends cdk.Stack {
                 'Access-Control-Allow-Headers': "'Content-Type,Authorization'",
             },
         });
+        // Import the ARN of the SQS queue
+        const productSqsArn = cdk.Fn.importValue('ProductSqsArn');
+
+        // Reference the imported SQS queue using its ARN
+        const productSqs = SQS.Queue.fromQueueArn(
+            this,
+            'ImportedProductSqs',
+            productSqsArn
+        );
+
+        productSqs.grantSendMessages(importFileParserLambda);
     }
 }
