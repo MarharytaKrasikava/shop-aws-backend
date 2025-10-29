@@ -1,8 +1,14 @@
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import {
+    AuthorizationType,
+    LambdaIntegration,
+    ResponseType,
+    RestApi,
+    TokenAuthorizer,
+} from 'aws-cdk-lib/aws-apigateway';
 import * as SQS from 'aws-cdk-lib/aws-sqs';
-import { LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { LambdaDestination } from 'aws-cdk-lib/aws-s3-notifications';
 import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
 import { Construct } from 'constructs';
@@ -69,8 +75,36 @@ export class ImportServiceStack extends cdk.Stack {
 
         const importResource = api.root.addResource('import');
 
+        const importAuthLambda = new lambda.Function(this, 'BasicAuthorizer', {
+            runtime: lambda.Runtime.NODEJS_20_X,
+            handler: 'basic-authorizer.main', // implement authorizer logic in this handler
+            code: lambda.Code.fromAsset(
+                join(__dirname, '../authorization-service/')
+            ),
+            timeout: cdk.Duration.seconds(5),
+            memorySize: 128,
+        });
+
+        const importAuthorizer = new TokenAuthorizer(
+            this,
+            'ImportLambdaAuthorizer',
+            {
+                handler: importAuthLambda,
+                identitySource: 'method.request.header.Authorization',
+            }
+        );
+
+        importResource.addCorsPreflight({
+            allowOrigins: ['*'],
+            allowMethods: ['GET', 'OPTIONS'],
+            allowHeaders: ['Content-Type', 'Authorization'],
+            statusCode: 200,
+        });
+
         importResource.addMethod('GET', importIntegration, {
             methodResponses: METHOD_RESPONSES,
+            authorizer: importAuthorizer,
+            authorizationType: AuthorizationType.CUSTOM,
         });
 
         // Task 5.3 Lambda function to parse CSV files from S3
@@ -101,6 +135,27 @@ export class ImportServiceStack extends cdk.Stack {
             { prefix: 'uploaded/' }
         );
 
+        api.addGatewayResponse('UnauthorizedResponse', {
+            type: ResponseType.UNAUTHORIZED,
+            templates: {
+                'application/json': `{"message":"$context.error.messageString"}`,
+            },
+            responseHeaders: {
+                'Access-Control-Allow-Origin': "'*'",
+                'Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+            },
+        });
+
+        api.addGatewayResponse('AccessDeniedResponse', {
+            type: ResponseType.ACCESS_DENIED,
+            templates: {
+                'application/json': `{"message":"$context.error.messageString"}`,
+            },
+            responseHeaders: {
+                'Access-Control-Allow-Origin': "'*'",
+                'Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+            },
+        });
         // Import the ARN of the SQS queue
         const productSqsArn = cdk.Fn.importValue('ProductSqsArn');
 
