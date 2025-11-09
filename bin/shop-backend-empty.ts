@@ -4,7 +4,7 @@ import { ProductsLambdaStack } from '../lib/products-lambda/products-lambda-stac
 import { ProductTableStack } from '../lib/product-table-lambda/product-table-lambda-stack';
 import { StockTableStack } from '../lib/stock-table-lambda/stock-table-lambda-stack';
 import { ImportServiceStack } from '../lib/import-service/import-service-stack';
-import { RdsStack } from '../lib/rds-service/rds-service-stack';
+import { ShopCartRdsStack } from '../lib/rds-service/rds-service-stack';
 
 const app = new cdk.App();
 
@@ -12,4 +12,4 @@ new ProductsLambdaStack(app, 'ProductsLambdaStack', {});
 new ProductTableStack(app, 'ProductTableStack', {});
 new StockTableStack(app, 'StockTableStack', {});
 new ImportServiceStack(app, 'ImportServiceStack', {});
-new RdsStack(app, 'RdsStack', {});
+new ShopCartRdsStack(app, 'ShopCartRdsStack', {});

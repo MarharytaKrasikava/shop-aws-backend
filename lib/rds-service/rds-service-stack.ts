@@ -8,19 +8,20 @@ import { aws_secretsmanager as secretsmanager } from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as dotenv from 'dotenv';
+import { InterfaceVpcEndpointAwsService } from 'aws-cdk-lib/aws-ec2';
 
 dotenv.config();
 
-export class RdsStack extends cdk.Stack {
+export class ShopCartRdsStack extends cdk.Stack {
     constructor(scope: Construct, id: string, props?: cdk.StackProps) {
         super(scope, id, props);
 
         //Define a PostgreSQL database instance in RDS
         const dbCredentialsSecret = new secretsmanager.Secret(
             this,
-            'CartDBCreds',
+            'ShopCartDBCreds',
             {
-                secretName: 'CartDBCredsName',
+                secretName: 'ShopCartDBCredsName',
                 generateSecretString: {
                     secretStringTemplate: JSON.stringify({
                         username: process.env.DB_USERNAME || 'adminuser',
@@ -32,9 +33,9 @@ export class RdsStack extends cdk.Stack {
             }
         );
 
-        new cdk.CfnOutput(this, 'CartDBCredentialsSecretArn', {
+        new cdk.CfnOutput(this, 'ShopCartDBCredentialsSecretArn', {
             value: dbCredentialsSecret.secretArn,
-            exportName: 'CartDBCredentialsSecretArn',
+            exportName: 'ShopCartDBCredentialsSecretArn',
         });
 
         // Create a VPC for the RDS instance and Lambda function
@@ -49,55 +50,63 @@ export class RdsStack extends cdk.Stack {
             ],
         });
 
-        const dbInstance = new rds.DatabaseInstance(this, 'CartDBInstance', {
-            engine: rds.DatabaseInstanceEngine.postgres({
-                version: rds.PostgresEngineVersion.VER_14,
-            }),
-            instanceType: ec2.InstanceType.of(
-                ec2.InstanceClass.BURSTABLE3,
-                ec2.InstanceSize.MICRO
-            ),
-            vpc,
-            credentials: rds.Credentials.fromSecret(dbCredentialsSecret),
-            databaseName: 'CartDB',
-            multiAz: false,
-            allocatedStorage: 20,
-            maxAllocatedStorage: 100,
-            allowMajorVersionUpgrade: false,
-            autoMinorVersionUpgrade: true,
-            backupRetention: cdk.Duration.days(7),
-            deleteAutomatedBackups: true,
-            removalPolicy: cdk.RemovalPolicy.DESTROY,
-            deletionProtection: false,
-            publiclyAccessible: true,
-            vpcSubnets: {
-                subnetType: ec2.SubnetType.PUBLIC,
-            },
+        vpc.addInterfaceEndpoint('SecretsManagerEndpoint', {
+            service: InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
         });
 
-        new cdk.CfnOutput(this, 'CartDBInstanceEndpoint', {
+        const dbInstance = new rds.DatabaseInstance(
+            this,
+            'ShopCartDBInstance',
+            {
+                engine: rds.DatabaseInstanceEngine.postgres({
+                    version: rds.PostgresEngineVersion.VER_14,
+                }),
+                instanceType: ec2.InstanceType.of(
+                    ec2.InstanceClass.BURSTABLE3,
+                    ec2.InstanceSize.MICRO
+                ),
+                vpc,
+                credentials: rds.Credentials.fromSecret(dbCredentialsSecret),
+                databaseName: 'ShopCartDB',
+                multiAz: false,
+                allocatedStorage: 20,
+                maxAllocatedStorage: 100,
+                allowMajorVersionUpgrade: false,
+                autoMinorVersionUpgrade: true,
+                backupRetention: cdk.Duration.days(7),
+                deleteAutomatedBackups: true,
+                removalPolicy: cdk.RemovalPolicy.DESTROY,
+                deletionProtection: false,
+                publiclyAccessible: true,
+                vpcSubnets: {
+                    subnetType: ec2.SubnetType.PUBLIC,
+                },
+            }
+        );
+
+        new cdk.CfnOutput(this, 'ShopCartDBInstanceEndpoint', {
             value: dbInstance.dbInstanceEndpointAddress,
         });
 
-        const proxy = new rds.DatabaseProxy(this, 'CartDBProxy', {
+        const proxy = new rds.DatabaseProxy(this, 'ShopCartDBProxy', {
             proxyTarget: rds.ProxyTarget.fromInstance(dbInstance),
             secrets: [dbCredentialsSecret],
             vpc,
             requireTLS: false,
         });
 
-        new cdk.CfnOutput(this, 'CartDBProxyEndpoint', {
+        new cdk.CfnOutput(this, 'ShopCartDBProxyEndpoint', {
             value: proxy.endpoint,
-            exportName: 'CartDBProxyEndpoint',
+            exportName: 'ShopCartDBProxyEndpoint',
         });
 
         // Create Lambda function to interact with the RDS instance
         const lambdaFunction = new lambdaNodejs.NodejsFunction(
             this,
-            'LambdaFunction',
+            'ShopCartLambdaFunction',
             {
                 runtime: lambda.Runtime.NODEJS_20_X,
-                timeout: cdk.Duration.seconds(29),
+                timeout: cdk.Duration.seconds(180),
                 memorySize: 512,
                 handler: 'handler',
                 entry: join(
@@ -109,7 +118,7 @@ export class RdsStack extends cdk.Stack {
                     DB_SECRET_NAME: dbCredentialsSecret.secretName,
                     DB_NAME: 'CartDB',
                     DB_PORT: '5432',
-                    DB_HOST: proxy.endpoint,
+                    DB_HOST: dbInstance.dbInstanceEndpointAddress,
                     NO_COLOR: 'true',
                 },
                 bundling: {
@@ -136,9 +145,9 @@ export class RdsStack extends cdk.Stack {
         dbCredentialsSecret.grantRead(lambdaFunction);
 
         // API Gateway setup
-        const api = new apigateway.RestApi(this, 'NestApi', {
-            restApiName: 'Nest Service',
-            description: 'This service serves a Nest.js application.',
+        const api = new apigateway.RestApi(this, 'ShopCartApi', {
+            restApiName: 'Shop Cart Service',
+            description: 'This service serves a Shop Cart application.',
         });
 
         const lambdaIntegration = new apigateway.LambdaIntegration(
