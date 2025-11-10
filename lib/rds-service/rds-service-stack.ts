@@ -88,18 +88,6 @@ export class ShopCartRdsStack extends cdk.Stack {
             value: dbInstance.dbInstanceEndpointAddress,
         });
 
-        const proxy = new rds.DatabaseProxy(this, 'ShopCartDBProxy', {
-            proxyTarget: rds.ProxyTarget.fromInstance(dbInstance),
-            secrets: [dbCredentialsSecret],
-            vpc,
-            requireTLS: false,
-        });
-
-        new cdk.CfnOutput(this, 'ShopCartDBProxyEndpoint', {
-            value: proxy.endpoint,
-            exportName: 'ShopCartDBProxyEndpoint',
-        });
-
         // Create Lambda function to interact with the RDS instance
         const lambdaFunction = new lambdaNodejs.NodejsFunction(
             this,
@@ -154,17 +142,51 @@ export class ShopCartRdsStack extends cdk.Stack {
             lambdaFunction
         );
 
-        // Add /cart resource with GET method
+        // Add resounces
         const cartResource = api.root.addResource('cart');
-        cartResource.addMethod('GET', lambdaIntegration);
+        const authResource = api.root.addResource('auth');
+        const orderResource = api.root.addResource('order');
+
+        // Cart endpoints
+        cartResource.addMethod('GET', lambdaIntegration); // Get cart
+        cartResource.addMethod('PUT', lambdaIntegration); // Update cart
+        cartResource.addMethod('DELETE', lambdaIntegration); // Clear cart
+
+        // Auth endpoints
+        authResource.addMethod('POST', lambdaIntegration); // Login/signup
+
+        // Order endpoints
+        orderResource.addMethod('GET', lambdaIntegration); // Get orders
+        orderResource.addMethod('POST', lambdaIntegration); // Create order
+
+        // Add OPTIONS method for CORS
         cartResource.addCorsPreflight({
             allowOrigins: ['*'],
-            allowMethods: ['GET', 'OPTIONS'],
+            allowMethods: ['GET', 'PUT', 'DELETE', 'OPTIONS'],
+            allowHeaders: ['Content-Type', 'Authorization'],
+        });
+
+        authResource.addCorsPreflight({
+            allowOrigins: ['*'],
+            allowMethods: ['POST', 'OPTIONS'],
+            allowHeaders: ['Content-Type', 'Authorization'],
+        });
+
+        orderResource.addCorsPreflight({
+            allowOrigins: ['*'],
+            allowMethods: ['GET', 'POST', 'OPTIONS'],
+            allowHeaders: ['Content-Type', 'Authorization'],
         });
 
         api.root.addProxy({
             defaultIntegration: lambdaIntegration,
             anyMethod: true,
+        });
+
+        // Output the API URL
+        new cdk.CfnOutput(this, 'ApiEndpoint', {
+            value: api.url,
+            description: 'API Gateway endpoint URL',
         });
     }
 }
